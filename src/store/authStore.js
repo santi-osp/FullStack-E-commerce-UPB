@@ -19,29 +19,43 @@ export const useAuthStore = create((set, get) => ({
   initializeAuth: () => {
     set({ isLoading: true })
     const unsubscribe = subscribeAuthChanges(async (firebaseUser) => {
-      if (firebaseUser) {
-        const profile = await fetchUserProfile(firebaseUser.uid)
-        set({
-          user: {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-          },
-          profile,
-          initialized: true,
-          isLoading: false,
-          error: null,
-        })
-      } else {
-        set({ user: null, profile: null, initialized: true, isLoading: false, error: null })
+      try {
+        if (firebaseUser) {
+          // No bloqueamos el login si falla el perfil de Firestore
+          const profile = await fetchUserProfile(firebaseUser.uid).catch(() => null)
+          set({
+            user: {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+            },
+            profile,
+            initialized: true,
+            isLoading: false,
+            error: null,
+          })
+        } else {
+          set({ 
+            user: null, 
+            profile: null, 
+            initialized: true, 
+            isLoading: false, 
+            error: null 
+          })
+        }
+      } catch (err) {
+        console.error('[authStore] Error crítico en initializeAuth:', err)
+        set({ initialized: true, isLoading: false })
       }
     })
-    // Fallback si Firebase no está disponible
+
+    // Fail-safe para asegurar que el app cargue incluso si Firebase tarda mucho
     setTimeout(() => {
       if (!get().initialized) {
         set({ initialized: true, isLoading: false })
       }
-    }, 2000)
+    }, 4000)
+
     return unsubscribe
   },
 
@@ -49,7 +63,7 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const user = await registerWithEmail({ displayName, email, password })
-      const profile = await fetchUserProfile(user.uid)
+      const profile = await fetchUserProfile(user.uid).catch(() => null)
       set({
         user: { uid: user.uid, email: user.email, displayName: user.displayName },
         profile,
@@ -57,6 +71,7 @@ export const useAuthStore = create((set, get) => ({
       })
       return true
     } catch (error) {
+      console.error('[authStore] Error en registro:', error)
       set({ error: mapFirebaseAuthError(error), isLoading: false })
       return false
     }
@@ -66,14 +81,17 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const user = await loginWithEmail({ email, password })
-      const profile = await fetchUserProfile(user.uid)
+      // Si el login fue exitoso, el usuario DEBE entrar
+      const profile = await fetchUserProfile(user.uid).catch(() => null)
       set({
         user: { uid: user.uid, email: user.email, displayName: user.displayName },
         profile,
         isLoading: false,
+        error: null,
       })
       return true
     } catch (error) {
+      console.error('[authStore] Error en login:', error)
       set({ error: mapFirebaseAuthError(error), isLoading: false })
       return false
     }
@@ -83,14 +101,16 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const user = await loginWithGoogle()
-      const profile = await fetchUserProfile(user.uid)
+      const profile = await fetchUserProfile(user.uid).catch(() => null)
       set({
         user: { uid: user.uid, email: user.email, displayName: user.displayName },
         profile,
         isLoading: false,
+        error: null,
       })
       return true
     } catch (error) {
+      console.error('[authStore] Error en login Google:', error)
       set({ error: mapFirebaseAuthError(error, 'Error al iniciar sesión con Google.'), isLoading: false })
       return false
     }
@@ -102,6 +122,7 @@ export const useAuthStore = create((set, get) => ({
       await logoutUser()
       set({ user: null, profile: null, isLoading: false, error: null })
     } catch (error) {
+      console.error('[authStore] Error en logout:', error)
       set({ error: mapFirebaseAuthError(error, 'Error al cerrar sesión.'), isLoading: false })
     }
   },

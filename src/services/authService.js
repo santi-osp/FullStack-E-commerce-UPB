@@ -89,8 +89,13 @@ async function syncUserProfile(user, db) {
 
 export async function fetchUserProfile(uid) {
   if (!isFirebaseReady() || !uid) return null
-  const { db } = getAuthAndDb()
-  const ref = doc(db, 'users', uid)
-  const snap = await getDoc(ref)
-  return snap.exists() ? { uid, ...snap.data() } : null
+  try {
+    const { db } = getAuthAndDb()
+    const ref = doc(db, 'users', uid)
+    const snap = await getDoc(ref)
+    return snap.exists() ? { uid, ...snap.data() } : null
+  } catch (error) {
+    console.warn('[authService] No se pudo obtener el perfil de Firestore:', error.message)
+    return null
+  }
 }
