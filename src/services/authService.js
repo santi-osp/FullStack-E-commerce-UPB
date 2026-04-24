@@ -65,20 +65,26 @@ export function subscribeAuthChanges(callback) {
 
 async function syncUserProfile(user, db) {
   if (!user || !db) return
-  const ref = doc(db, 'users', user.uid)
-  const snap = await getDoc(ref)
-  const now = new Date().toISOString()
-  const payload = {
-    displayName: user.displayName || '',
-    email: user.email || '',
-    phone: user.phoneNumber || '',
-    role: 'customer',
-    updatedAt: now,
+  try {
+    const ref = doc(db, 'users', user.uid)
+    const snap = await getDoc(ref)
+    const now = new Date().toISOString()
+    const payload = {
+      displayName: user.displayName || '',
+      email: user.email || '',
+      phone: user.phoneNumber || '',
+      role: 'customer',
+      updatedAt: now,
+    }
+    if (!snap.exists()) {
+      payload.createdAt = now
+    }
+    await setDoc(ref, payload, { merge: true })
+  } catch (error) {
+    console.error('[authService] Error al sincronizar perfil en Firestore:', error)
+    // No lanzamos el error para no bloquear el acceso si la auth fue exitosa
+    // pero Firestore tiene problemas de permisos
   }
-  if (!snap.exists()) {
-    payload.createdAt = now
-  }
-  await setDoc(ref, payload, { merge: true })
 }
 
 export async function fetchUserProfile(uid) {

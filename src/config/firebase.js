@@ -19,6 +19,7 @@ export function initFirebase() {
 
   try {
     if (getApps().length === 0) {
+      console.log('[Firebase] Inicializando nueva instancia...')
       firebaseApp = initializeApp({
         apiKey: ENV.FIREBASE_API_KEY,
         authDomain: ENV.FIREBASE_AUTH_DOMAIN,
@@ -35,6 +36,7 @@ export function initFirebase() {
     firebaseAuth = getAuth(firebaseApp)
     firestoreDb = getFirestore(firebaseApp)
     firebaseReady = true
+    console.log('[Firebase] Inicializado correctamente.')
 
     isSupported().then((supported) => {
       if (supported) {
