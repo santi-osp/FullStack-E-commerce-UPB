@@ -21,25 +21,23 @@ function getAuthAndDb() {
 }
 
 export async function registerWithEmail({ displayName, email, password }) {
-  const { auth, db } = getAuthAndDb()
+  const { auth } = getAuthAndDb()
   const credential = await createUserWithEmailAndPassword(auth, email, password)
   await updateProfile(credential.user, { displayName })
-  await syncUserProfile(credential.user, db)
+  // No esperamos a Firestore aquí, dejamos que subscribeAuthChanges lo maneje
   return credential.user
 }
 
 export async function loginWithEmail({ email, password }) {
-  const { auth, db } = getAuthAndDb()
+  const { auth } = getAuthAndDb()
   const credential = await signInWithEmailAndPassword(auth, email, password)
-  await syncUserProfile(credential.user, db)
   return credential.user
 }
 
 export async function loginWithGoogle() {
-  const { auth, db } = getAuthAndDb()
+  const { auth } = getAuthAndDb()
   const provider = new GoogleAuthProvider()
   const credential = await signInWithPopup(auth, provider)
-  await syncUserProfile(credential.user, db)
   return credential.user
 }
 
@@ -48,16 +46,23 @@ export async function logoutUser() {
   await signOut(auth)
 }
 
+/**
+ * Suscribe a los cambios de autenticación.
+ * La sincronización con Firestore se hace en segundo plano para no bloquear el login.
+ */
 export function subscribeAuthChanges(callback) {
   if (!isFirebaseReady()) {
     console.warn('[authService] Firebase no está listo, listener no disponible.')
     return () => {}
   }
   const { auth } = getAuthAndDb()
-  return onAuthStateChanged(auth, async (user) => {
+  return onAuthStateChanged(auth, (user) => {
     if (user) {
       const { db } = getAuthAndDb()
-      await syncUserProfile(user, db)
+      // Sincronización en segundo plano (fire & forget) para evitar latencia en el inicio
+      syncUserProfile(user, db).catch(err => {
+        console.warn('[authService] Error silencioso de sincronización:', err.message)
+      })
     }
     callback(user)
   })
@@ -67,23 +72,18 @@ async function syncUserProfile(user, db) {
   if (!user || !db) return
   try {
     const ref = doc(db, 'users', user.uid)
-    const snap = await getDoc(ref)
     const now = new Date().toISOString()
-    const payload = {
+    
+    // Simplificamos: merge true se encarga de no borrar createdAt si ya existe
+    // Evitamos un getDoc previo para reducir latencia y cuota de lectura
+    await setDoc(ref, {
       displayName: user.displayName || '',
       email: user.email || '',
       phone: user.phoneNumber || '',
-      role: 'customer',
       updatedAt: now,
-    }
-    if (!snap.exists()) {
-      payload.createdAt = now
-    }
-    await setDoc(ref, payload, { merge: true })
+    }, { merge: true })
   } catch (error) {
     console.error('[authService] Error al sincronizar perfil en Firestore:', error)
-    // No lanzamos el error para no bloquear el acceso si la auth fue exitosa
-    // pero Firestore tiene problemas de permisos
   }
 }
 
