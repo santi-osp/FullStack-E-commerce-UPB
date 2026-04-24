@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import ProductCard from '../molecules/ProductCard.jsx'
+import ProductDetailModal from '../molecules/ProductDetailModal.jsx'
 import { useProductStore } from '../../store/productStore.js'
 
 export default function ProductGallery() {
+  const [selectedProduct, setSelectedProduct] = useState(null)
   const products = useProductStore((s) => s.products)
   const isLoading = useProductStore((s) => s.isLoading)
   const error = useProductStore((s) => s.error)
@@ -36,10 +39,23 @@ export default function ProductGallery() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {products.map((product) => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            onDetail={() => setSelectedProduct(product)}
+          />
+        ))}
+      </div>
+
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
+    </>
   )
 }

@@ -2,7 +2,7 @@ import Button from '../atoms/Button.jsx'
 import { formatCurrency } from '../../utils/formatters.js'
 import { useCartStore } from '../../store/cartStore.js'
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, onDetail }) {
   const addItem = useCartStore((s) => s.addItem)
 
   return (
@@ -22,14 +22,24 @@ export default function ProductCard({ product }) {
         </div>
         <h3 className="mb-1 text-base font-semibold text-slate-100 line-clamp-1">{product.title}</h3>
         <p className="mb-3 text-sm text-slate-400 line-clamp-2">{product.description}</p>
-        <div className="mt-auto flex items-center justify-between gap-3">
-          <span className="text-lg font-bold text-white">{formatCurrency(product.price)}</span>
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-bold text-white">{formatCurrency(product.price)}</span>
+            <Button
+              onClick={() => addItem(product)}
+              variant="primary"
+              ariaLabel={`Agregar ${product.title} al carrito`}
+            >
+              Agregar
+            </Button>
+          </div>
           <Button
-            onClick={() => addItem(product)}
-            variant="primary"
-            ariaLabel={`Agregar ${product.title} al carrito`}
+            onClick={onDetail}
+            variant="outline"
+            className="w-full text-xs py-1.5"
+            ariaLabel={`Ver detalles de ${product.title}`}
           >
-            Agregar
+            Ver detalles
           </Button>
         </div>
       </div>
